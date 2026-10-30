@@ -54,5 +54,5 @@ export const segmentedContentTypes: SegmentedContentType[] = [
 ]
 
 export function isJSONContentType(contentType: string) {
-  return /json/i.test(contentType)
+  return /\bjson\b/i.test(contentType)
 }
