@@ -60,7 +60,9 @@ export function buildMockServerStats(
 
     const dayHits = row?.hitCount ?? 0;
     const dayErrors = row?.errorCount ?? 0;
-    const dayResponseTime = row?.totalResponseTimeMs ?? 0;
+    // Stored as BigInt; a single day's or window's total stays well within
+    // Number.MAX_SAFE_INTEGER, so converting here is lossless.
+    const dayResponseTime = Number(row?.totalResponseTimeMs ?? 0);
 
     hitCount += dayHits;
     errorCount += dayErrors;

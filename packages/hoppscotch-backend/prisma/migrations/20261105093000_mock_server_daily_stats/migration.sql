@@ -8,7 +8,7 @@ CREATE TABLE "MockServerDailyStat" (
     "date" DATE NOT NULL,
     "hitCount" INTEGER NOT NULL DEFAULT 0,
     "errorCount" INTEGER NOT NULL DEFAULT 0,
-    "totalResponseTimeMs" INTEGER NOT NULL DEFAULT 0,
+    "totalResponseTimeMs" BIGINT NOT NULL DEFAULT 0,
     "updatedOn" TIMESTAMPTZ(3) NOT NULL,
 
     CONSTRAINT "MockServerDailyStat_pkey" PRIMARY KEY ("id")
@@ -39,7 +39,7 @@ SELECT
     (l."executedAt" AT TIME ZONE 'UTC')::date,
     COUNT(*)::int,
     (COUNT(*) FILTER (WHERE l."responseStatus" >= 400))::int,
-    LEAST(SUM(l."responseTime"), 2147483647)::int,
+    COALESCE(SUM(l."responseTime"), 0)::bigint,
     CURRENT_TIMESTAMP
 FROM "MockServerLog" l
 GROUP BY l."mockServerID", (l."executedAt" AT TIME ZONE 'UTC')::date;

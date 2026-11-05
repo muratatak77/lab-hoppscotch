@@ -10,12 +10,12 @@ const row = (
   date: string,
   hitCount: number,
   errorCount: number,
-  totalResponseTimeMs: number,
+  totalResponseTimeMs: number | bigint,
 ) => ({
   date: new Date(`${date}T00:00:00.000Z`),
   hitCount,
   errorCount,
-  totalResponseTimeMs,
+  totalResponseTimeMs: BigInt(totalResponseTimeMs),
 });
 
 describe('mock-server-stats.util', () => {
@@ -136,6 +136,19 @@ describe('mock-server-stats.util', () => {
       expect(stats.daily).toHaveLength(2);
       expect(stats.hitCount).toBe(1);
       expect(stats.errorCount).toBe(0);
+    });
+
+    test('should handle a daily response time total above the 32-bit integer range', () => {
+      // ~40k hits at the maximum 60 s delay: 2.4e9 ms, more than 2^31 - 1
+      const stats = buildMockServerStats(
+        'mock123',
+        [row('2026-03-02', 40_000, 0, 2_400_000_000n)],
+        1,
+        today,
+      );
+
+      expect(stats.daily[0].avgResponseTimeMs).toBe(60_000);
+      expect(stats.avgResponseTimeMs).toBe(60_000);
     });
   });
 });

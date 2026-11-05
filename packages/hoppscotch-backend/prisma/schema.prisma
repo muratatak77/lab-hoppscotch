@@ -320,7 +320,7 @@ model MockServerDailyStat {
   date                DateTime @db.Date // UTC day bucket
   hitCount            Int      @default(0)
   errorCount          Int      @default(0) // responses with status >= 400
-  totalResponseTimeMs Int      @default(0)
+  totalResponseTimeMs BigInt   @default(0) // can exceed 32 bits on busy, slow mocks
   updatedOn           DateTime @updatedAt @db.Timestamptz(3)
 
   mockServer MockServer @relation(fields: [mockServerID], references: [id], onDelete: Cascade)
