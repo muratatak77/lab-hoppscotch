@@ -7,7 +7,7 @@ import {
 import { PrismaError } from 'src/prisma/prisma-error-codes';
 import { isErrorStatus, startOfUtcDay } from './mock-server-stats.util';
 
-@Injectable()
+@Injectable()  // changed on the base while this PR was open (1793919374)
 export class MockServerAnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
