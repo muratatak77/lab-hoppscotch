@@ -266,6 +266,7 @@ model MockServer {
   isPublic      Boolean       @default(true)
   isActive      Boolean       @default(true)
   hitCount      Int           @default(0)
+  errorCount    Int           @default(0)
   lastHitAt     DateTime?     @db.Timestamptz(3)
   createdOn     DateTime      @default(now()) @db.Timestamptz(3)
   updatedOn     DateTime      @updatedAt @db.Timestamptz(3)
@@ -274,6 +275,7 @@ model MockServer {
   user            User?                @relation(fields: [creatorUid], references: [uid], onDelete: SetNull)
   requestLogs     MockServerLog[]
   activityHistory MockServerActivity[]
+  dailyStats      MockServerDailyStat[]
 }
 
 model MockServerLog {
@@ -308,6 +310,22 @@ model MockServerActivity {
   mockServer MockServer @relation(fields: [mockServerID], references: [id], onDelete: Cascade)
 
   @@index([mockServerID])
+}
+
+// Per-day request counters for a mock server. Kept separately from
+// MockServerLog so usage history survives log deletion.
+model MockServerDailyStat {
+  id                  String   @id @default(cuid())
+  mockServerID        String
+  date                DateTime @db.Date // UTC day bucket
+  hitCount            Int      @default(0)
+  errorCount          Int      @default(0) // responses with status >= 400
+  totalResponseTimeMs Int      @default(0)
+  updatedOn           DateTime @updatedAt @db.Timestamptz(3)
+
+  mockServer MockServer @relation(fields: [mockServerID], references: [id], onDelete: Cascade)
+
+  @@unique([mockServerID, date])
 }
 
 // ============================================================

@@ -20,6 +20,9 @@ import {
   MockServerCollection,
   MockServerLog,
   FetchTeamMockServersArgs,
+  MockServerStats,
+  MockServerStatsArgs,
+  MOCK_SERVER_STATS_DEFAULT_DAYS,
 } from './mock-server.model';
 import * as E from 'fp-ts/Either';
 import { OffsetPaginationArgs } from 'src/types/input-types.args';
@@ -137,6 +140,26 @@ export class MockServerResolver {
       mockServerID,
       user.uid,
       args,
+    );
+
+    if (E.isLeft(result)) throwErr(result.left);
+    return result.right;
+  }
+
+  @Query(() => MockServerStats, {
+    description:
+      'Get daily request stats for a specific mock server over the last N days (UTC)',
+  })
+  @UseGuards(GqlAuthGuard)
+  async mockServerStats(
+    @GqlUser() user: AuthUser,
+    @Args() args: MockServerStatsArgs,
+  ): Promise<MockServerStats> {
+    const result = await this.mockServerService.getMockServerStats(
+      args.mockServerID,
+      user.uid,
+      // `days` is nullable in the schema, so an explicit null skips the default
+      args.days ?? MOCK_SERVER_STATS_DEFAULT_DAYS,
     );
 
     if (E.isLeft(result)) throwErr(result.left);

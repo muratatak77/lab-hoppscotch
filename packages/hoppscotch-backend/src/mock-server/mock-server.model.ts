@@ -1,6 +1,7 @@
 import {
   Field,
   ID,
+  Int,
   ObjectType,
   ArgsType,
   InputType,
@@ -9,6 +10,7 @@ import {
 import {
   IsBoolean,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -19,6 +21,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { OffsetPaginationArgs } from 'src/types/input-types.args';
 import { WorkspaceType } from 'src/types/WorkspaceTypes';
 
@@ -84,6 +87,23 @@ export class MockServer {
     description: 'Whether the mock server is publicly accessible',
   })
   isPublic: boolean;
+
+  @Field(() => Int, {
+    description: 'Total number of requests served by the mock server',
+  })
+  hitCount: number;
+
+  @Field(() => Int, {
+    description:
+      'Total number of requests that resulted in a response status of 400 or above',
+  })
+  errorCount: number;
+
+  @Field({
+    nullable: true,
+    description: 'Date and time when the mock server last served a request',
+  })
+  lastHitAt?: Date;
 
   @Field({
     description: 'Date and time when the mock server was created',
@@ -350,6 +370,87 @@ export class MockServerLog {
     description: 'Date and time when the request was executed',
   })
   executedAt: Date;
+}
+
+export const MOCK_SERVER_STATS_DEFAULT_DAYS = 30;
+export const MOCK_SERVER_STATS_MAX_DAYS = 90;
+
+@ArgsType()
+export class MockServerStatsArgs {
+  @Field(() => ID, {
+    description: 'ID of the mock server',
+  })
+  @IsString()
+  @IsNotEmpty()
+  mockServerID: string;
+
+  @Field(() => Int, {
+    nullable: true,
+    defaultValue: MOCK_SERVER_STATS_DEFAULT_DAYS,
+    description: `Number of days (including today, in UTC) to return stats for. Maximum ${MOCK_SERVER_STATS_MAX_DAYS}`,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(MOCK_SERVER_STATS_MAX_DAYS)
+  @Type(() => Number)
+  days: number = MOCK_SERVER_STATS_DEFAULT_DAYS;
+}
+
+@ObjectType()
+export class MockServerDailyStat {
+  @Field({
+    description: 'UTC day the counters belong to, formatted as YYYY-MM-DD',
+  })
+  date: string;
+
+  @Field(() => Int, {
+    description: 'Number of requests served on this day',
+  })
+  hitCount: number;
+
+  @Field(() => Int, {
+    description:
+      'Number of requests on this day that resulted in a response status of 400 or above',
+  })
+  errorCount: number;
+
+  @Field(() => Int, {
+    description:
+      'Average response time in milliseconds for this day, 0 when there were no requests',
+  })
+  avgResponseTimeMs: number;
+}
+
+@ObjectType()
+export class MockServerStats {
+  @Field(() => ID, {
+    description: 'ID of the mock server',
+  })
+  mockServerID: string;
+
+  @Field(() => Int, {
+    description: 'Number of requests served within the requested window',
+  })
+  hitCount: number;
+
+  @Field(() => Int, {
+    description:
+      'Number of requests within the requested window that resulted in a response status of 400 or above',
+  })
+  errorCount: number;
+
+  @Field(() => Int, {
+    description:
+      'Average response time in milliseconds within the requested window, 0 when there were no requests',
+  })
+  avgResponseTimeMs: number;
+
+  @Field(() => [MockServerDailyStat], {
+    description:
+      'Per-day counters ordered from oldest to newest, with days without traffic included as zeroes',
+  })
+  daily: MockServerDailyStat[];
 }
 
 registerEnumType(WorkspaceType, {

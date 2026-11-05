@@ -338,6 +338,7 @@ declare module 'vue' {
     MockServerMockServerCreatedInfo: typeof import('./components/mockServer/MockServerCreatedInfo.vue')['default']
     MockServerMockServerDashboard: typeof import('./components/mockServer/MockServerDashboard.vue')['default']
     MockServerMockServerLogs: typeof import('./components/mockServer/MockServerLogs.vue')['default']
+    MockServerStatsSummary: typeof import('./components/mockServer/StatsSummary.vue')['default']
     MonacoScriptEditor: typeof import('./components/MonacoScriptEditor.vue')['default']
     OrganizationSwitcher: typeof import('./components/organization/Switcher.vue')['default']
     Profile: typeof import('./components/profile/index.vue')['default']

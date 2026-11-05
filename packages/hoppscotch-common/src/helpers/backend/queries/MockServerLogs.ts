@@ -7,6 +7,9 @@ import {
   DeleteMockServerLogDocument,
   DeleteMockServerLogMutation,
   DeleteMockServerLogMutationVariables,
+  GetMockServerStatsDocument,
+  GetMockServerStatsQuery,
+  GetMockServerStatsQueryVariables,
 } from "../graphql"
 
 export const getMockServerLogs = (
@@ -30,6 +33,32 @@ export const getMockServerLogs = (
       if (!result.data) throw new Error("No data returned from mockServerLogs")
 
       return result.data.mockServerLogs
+    },
+    (e) => (e as Error).message
+  )
+
+export const getMockServerStats = (mockServerID: string, days?: number) =>
+  TE.tryCatch(
+    async () => {
+      const result = await client
+        .value!.query<
+          GetMockServerStatsQuery,
+          GetMockServerStatsQueryVariables
+        >(
+          GetMockServerStatsDocument,
+          { mockServerID, days },
+          // Counters change on every mock hit, never serve them from cache
+          { requestPolicy: "network-only" }
+        )
+        .toPromise()
+
+      if (result.error)
+        throw new Error(
+          result.error.message || "Failed to fetch mock server stats"
+        )
+      if (!result.data) throw new Error("No data returned from mockServerStats")
+
+      return result.data.mockServerStats
     },
     (e) => (e as Error).message
   )
