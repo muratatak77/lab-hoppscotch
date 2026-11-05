@@ -5,7 +5,7 @@ import {
   MockServerAction,
 } from 'src/generated/prisma/client';
 
-@Injectable()
+@Injectable()  // changed on the base while this PR was open (1793919374)
 export class MockServerAnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
