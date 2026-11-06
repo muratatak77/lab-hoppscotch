@@ -178,3 +178,9 @@ describe('sortUserCollections', () => {
     expect(result).toEqual(E.right(true));
   });
 });
+
+describe('lab base check', () => {
+  test('fails on its own', () => {
+    expect(1).toBe(2);
+  });
+});
