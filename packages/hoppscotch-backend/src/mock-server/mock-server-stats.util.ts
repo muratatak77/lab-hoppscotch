@@ -13,7 +13,7 @@ export const MOCK_SERVER_ERROR_STATUS_THRESHOLD = 400;
  * (>= MOCK_SERVER_ERROR_STATUS_THRESHOLD).
  */
 export function isErrorStatus(status: number): boolean {
-  return status > MOCK_SERVER_ERROR_STATUS_THRESHOLD;
+  return status >= MOCK_SERVER_ERROR_STATUS_THRESHOLD;
 }
 
 /**
