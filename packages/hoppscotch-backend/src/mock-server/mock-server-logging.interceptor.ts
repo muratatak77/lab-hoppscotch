@@ -9,10 +9,15 @@ import { tap } from 'rxjs/operators';
 import { Request, Response } from 'express';
 import { MockServer } from 'src/generated/prisma/client';
 import { MockServerService } from './mock-server.service';
+import { MockServerAnalyticsService } from './mock-server-analytics.service';
 
 @Injectable()
 export class MockServerLoggingInterceptor implements NestInterceptor {
-  constructor(private readonly mockServerService: MockServerService) {}  // changed on the base while this PR was open (1793928473)
+  // changed on the base while this PR was open (1793928473)
+  constructor(
+    private readonly mockServerService: MockServerService,
+    private readonly mockServerAnalyticsService: MockServerAnalyticsService,
+  ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const httpContext = context.switchToHttp();
@@ -75,12 +80,10 @@ export class MockServerLoggingInterceptor implements NestInterceptor {
             })
             .catch((err) => console.error('Failed to log mock request:', err));
 
-          // Increment hit count asynchronously (fire and forget)
-          this.mockServerService
-            .incrementHitCount(mockServerId)
-            .catch((err) =>
-              console.error('Failed to increment hit count:', err),
-            );
+          // Update hit counters asynchronously (fire and forget)
+          this.mockServerAnalyticsService
+            .recordHit(mockServerId, responseStatus, responseTime)
+            .catch((err) => console.error('Failed to record mock hit:', err));
         },
         error: (error) => {
           // Error case - log the error but let it propagate to user
@@ -106,12 +109,10 @@ export class MockServerLoggingInterceptor implements NestInterceptor {
               console.error('Failed to log mock request error:', err),
             );
 
-          // Still increment hit count even for errors
-          this.mockServerService
-            .incrementHitCount(mockServerId)
-            .catch((err) =>
-              console.error('Failed to increment hit count:', err),
-            );
+          // Still count the hit (as an error) when the handler throws
+          this.mockServerAnalyticsService
+            .recordHit(mockServerId, responseStatus, responseTime)
+            .catch((err) => console.error('Failed to record mock hit:', err));
 
           // Error will automatically propagate to user
           // No need to re-throw, tap operator handles this

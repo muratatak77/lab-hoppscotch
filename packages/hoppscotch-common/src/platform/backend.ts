@@ -14,6 +14,7 @@ import {
   GetInviteDetailsQuery,
   GetInviteDetailsQueryVariables,
   GetMockServerLogsQuery,
+  GetMockServerStatsQuery,
   GetMyTeamsQuery,
   PublishedDocQuery,
   GetUserShortcodesQuery,
@@ -123,6 +124,11 @@ export type BackendPlatformDef = {
   ) => TE.TaskEither<string, GetMockServerLogsQuery["mockServerLogs"]>
 
   deleteMockServerLog: (logID: string) => TE.TaskEither<string, boolean>
+
+  getMockServerStats: (
+    mockServerID: string,
+    days?: number
+  ) => TE.TaskEither<string, GetMockServerStatsQuery["mockServerStats"]>
 
   // Published docs operations
   createPublishedDoc: (

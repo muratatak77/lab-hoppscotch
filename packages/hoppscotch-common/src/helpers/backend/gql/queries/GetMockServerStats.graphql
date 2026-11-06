@@ -1,0 +1,14 @@
+query GetMockServerStats($mockServerID: ID!, $days: Int) {
+  mockServerStats(mockServerID: $mockServerID, days: $days) {
+    mockServerID
+    hitCount
+    errorCount
+    avgResponseTimeMs
+    daily {
+      date
+      hitCount
+      errorCount
+      avgResponseTimeMs
+    }
+  }
+}

@@ -8,6 +8,8 @@
   >
     <template #body>
       <div class="p-4">
+        <MockServerStatsSummary :mock-server-i-d="mockServerID" />
+
         <div v-if="loading" class="flex justify-center py-8">
           <HoppSmartSpinner />
         </div>

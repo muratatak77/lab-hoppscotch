@@ -44,6 +44,7 @@ import {
 import {
   getMockServerLogs,
   deleteMockServerLog,
+  getMockServerStats,
 } from "../../helpers/backend/queries/MockServerLogs"
 import {
   createPublishedDoc,
@@ -162,6 +163,7 @@ export const def: BackendPlatformDef = {
   getTeamMockServers,
   getMockServerLogs,
   deleteMockServerLog,
+  getMockServerStats,
   createPublishedDoc,
   updatePublishedDoc,
   deletePublishedDoc,

@@ -85,6 +85,7 @@ const dbMockServer: dbMockServer = {
   isPublic: true,
   isActive: true,
   hitCount: 0,
+  errorCount: 0,
   lastHitAt: null,
   createdOn: currentTime,
   updatedOn: currentTime,
@@ -310,6 +311,28 @@ describe('MockServerService', () => {
       if (E.isRight(result)) {
         expect((result.right as any).id).toBe(dbMockServer.id);
         expect((result.right as any).name).toBe(dbMockServer.name);
+      }
+    });
+
+    test('should expose usage counters on the returned mock server', async () => {
+      const lastHitAt = new Date('2026-11-04T10:00:00.000Z');
+      mockPrisma.mockServer.findFirst.mockResolvedValue({
+        ...dbMockServer,
+        hitCount: 42,
+        errorCount: 3,
+        lastHitAt,
+      });
+
+      const result = await mockServerService.getMockServer(
+        dbMockServer.id,
+        user.uid,
+      );
+
+      expect(E.isRight(result)).toBe(true);
+      if (E.isRight(result)) {
+        expect(result.right.hitCount).toBe(42);
+        expect(result.right.errorCount).toBe(3);
+        expect(result.right.lastHitAt).toEqual(lastHitAt);
       }
     });
 
@@ -1280,32 +1303,161 @@ describe('MockServerService', () => {
     });
   });
 
-  describe('incrementHitCount', () => {
-    test('should increment hit count and update last hit timestamp', async () => {
-      mockPrisma.mockServer.update.mockResolvedValue({
-        ...dbMockServer,
-        hitCount: 1,
-        lastHitAt: currentTime,
+  describe('getMockServerStats', () => {
+    beforeEach(() => {
+      jest.useFakeTimers({ now: new Date('2026-11-05T15:30:00.000Z') });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    test('should return a zero-filled daily series for the requested window', async () => {
+      mockPrisma.mockServer.findFirst.mockResolvedValue(dbMockServer);
+      mockPrisma.mockServerDailyStat.findMany.mockResolvedValue([
+        {
+          id: 'stat1',
+          mockServerID: dbMockServer.id,
+          date: new Date('2026-11-03T00:00:00.000Z'),
+          hitCount: 4,
+          errorCount: 1,
+          totalResponseTimeMs: 100,
+          updatedOn: currentTime,
+        },
+        {
+          id: 'stat2',
+          mockServerID: dbMockServer.id,
+          date: new Date('2026-11-05T00:00:00.000Z'),
+          hitCount: 6,
+          errorCount: 0,
+          totalResponseTimeMs: 50,
+          updatedOn: currentTime,
+        },
+      ]);
+
+      const result = await mockServerService.getMockServerStats(
+        dbMockServer.id,
+        user.uid,
+        3,
+      );
+
+      expect(mockPrisma.mockServerDailyStat.findMany).toHaveBeenCalledWith({
+        where: {
+          mockServerID: dbMockServer.id,
+          date: { gte: new Date('2026-11-03T00:00:00.000Z') },
+        },
+        orderBy: { date: 'asc' },
       });
+      expect(result).toEqualRight({
+        mockServerID: dbMockServer.id,
+        hitCount: 10,
+        errorCount: 1,
+        avgResponseTimeMs: 15,
+        daily: [
+          {
+            date: '2026-11-03',
+            hitCount: 4,
+            errorCount: 1,
+            avgResponseTimeMs: 25,
+          },
+          {
+            date: '2026-11-04',
+            hitCount: 0,
+            errorCount: 0,
+            avgResponseTimeMs: 0,
+          },
+          {
+            date: '2026-11-05',
+            hitCount: 6,
+            errorCount: 0,
+            avgResponseTimeMs: 8,
+          },
+        ],
+      });
+    });
 
-      await mockServerService.incrementHitCount(dbMockServer.id);
+    test('should allow team viewers to read stats', async () => {
+      const teamMockServer = {
+        ...dbMockServer,
+        workspaceType: WorkspaceType.TEAM,
+        workspaceID: 'team123',
+      };
+      mockPrisma.mockServer.findFirst.mockResolvedValue(teamMockServer);
+      mockPrisma.team.findFirst.mockResolvedValue({
+        id: 'team123',
+        name: 'Team',
+      });
+      mockPrisma.mockServerDailyStat.findMany.mockResolvedValue([]);
 
-      expect(mockPrisma.mockServer.update).toHaveBeenCalledWith({
-        where: { id: dbMockServer.id },
-        data: {
-          hitCount: { increment: 1 },
-          lastHitAt: expect.any(Date),
+      const result = await mockServerService.getMockServerStats(
+        teamMockServer.id,
+        'viewer-user',
+        1,
+      );
+
+      expect(E.isRight(result)).toBe(true);
+      expect(mockPrisma.team.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 'team123',
+          members: {
+            some: {
+              userUid: 'viewer-user',
+              role: {
+                in: [
+                  TeamAccessRole.OWNER,
+                  TeamAccessRole.EDITOR,
+                  TeamAccessRole.VIEWER,
+                ],
+              },
+            },
+          },
         },
       });
     });
 
-    test('should handle errors gracefully', async () => {
-      mockPrisma.mockServer.update.mockRejectedValue(new Error('DB Error'));
+    test('should return error when mock server not found', async () => {
+      mockPrisma.mockServer.findFirst.mockResolvedValue(null);
 
-      // Should not throw
-      await expect(
-        mockServerService.incrementHitCount(dbMockServer.id),
-      ).resolves.not.toThrow();
+      const result = await mockServerService.getMockServerStats(
+        'invalid-id',
+        user.uid,
+        30,
+      );
+
+      expect(result).toEqualLeft(MOCK_SERVER_NOT_FOUND);
+      expect(mockPrisma.mockServerDailyStat.findMany).not.toHaveBeenCalled();
+    });
+
+    test('should return error instead of throwing when the database fails', async () => {
+      mockPrisma.mockServer.findFirst.mockResolvedValue(dbMockServer);
+      mockPrisma.mockServerDailyStat.findMany.mockRejectedValue(
+        new Error('connection refused'),
+      );
+      const consoleSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+
+      const result = await mockServerService.getMockServerStats(
+        dbMockServer.id,
+        user.uid,
+        30,
+      );
+
+      expect(result).toEqualLeft(MOCK_SERVER_NOT_FOUND);
+      consoleSpy.mockRestore();
+    });
+
+    test('should return error when user lacks access', async () => {
+      mockPrisma.mockServer.findFirst.mockResolvedValue(dbMockServer);
+
+      const result = await mockServerService.getMockServerStats(
+        dbMockServer.id,
+        'different-user',
+        30,
+      );
+
+      expect(result).toEqualLeft(MOCK_SERVER_NOT_FOUND);
+      expect(mockPrisma.mockServerDailyStat.findMany).not.toHaveBeenCalled();
     });
   });
 
@@ -2369,7 +2521,11 @@ describe('MockServerService', () => {
             // A stamped mutation example plus a plain REST example on the same
             // path — an unmatched *query* must reach the REST example, not 404
             examples: [
-              { ...gqlExample, operationType: 'mutation', operationName: 'Nope' },
+              {
+                ...gqlExample,
+                operationType: 'mutation',
+                operationName: 'Nope',
+              },
               unstampedGraphqlRestExample,
             ],
           },

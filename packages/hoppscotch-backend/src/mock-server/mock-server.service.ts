@@ -7,6 +7,7 @@ import {
   MockServer,
   MockServerCollection,
   MockServerLog,
+  MockServerStats,
 } from './mock-server.model';
 import * as E from 'fp-ts/Either';
 import {
@@ -37,6 +38,7 @@ import { UserCollectionService } from 'src/user-collection/user-collection.servi
 import { ReqType } from 'src/types/RequestTypes';
 import { AuthUser } from 'src/types/AuthUser';
 import { mockServerCollRequestExample } from './constants/mock-server-coll-request-example';
+import { buildMockServerStats, windowStart } from './mock-server-stats.util';
 
 /**
  * A saved example carrying GraphQL operation identity, projected by the
@@ -109,6 +111,9 @@ export class MockServerService {
       delayInMs: dbMockServer.delayInMs,
       isActive: dbMockServer.isActive,
       isPublic: dbMockServer.isPublic,
+      hitCount: dbMockServer.hitCount,
+      errorCount: dbMockServer.errorCount,
+      lastHitAt: dbMockServer.lastHitAt,
       createdOn: dbMockServer.createdOn,
       updatedOn: dbMockServer.updatedOn,
     } as MockServer;
@@ -700,20 +705,36 @@ export class MockServerService {
   }
 
   /**
-   * Increment hit count and update last hit timestamp for a mock server
+   * Get daily usage stats for a mock server over the last `days` UTC days
+   * (including today). Days without traffic are returned as zeroes.
    */
-  async incrementHitCount(mockServerID: string): Promise<void> {
+  async getMockServerStats(
+    mockServerId: string,
+    userUid: string,
+    days: number,
+  ): Promise<E.Either<string, MockServerStats>> {
     try {
-      await this.prisma.mockServer.update({
-        where: { id: mockServerID },
-        data: {
-          hitCount: { increment: 1 },
-          lastHitAt: new Date(),
-        },
+      const mockServer = await this.prisma.mockServer.findFirst({
+        where: { id: mockServerId, deletedAt: null },
       });
+      if (!mockServer) return E.left(MOCK_SERVER_NOT_FOUND);
+
+      const hasAccess = await this.checkMockServerAccess(mockServer, userUid);
+      if (!hasAccess) return E.left(MOCK_SERVER_NOT_FOUND);
+
+      const today = new Date();
+      const rows = await this.prisma.mockServerDailyStat.findMany({
+        where: {
+          mockServerID: mockServerId,
+          date: { gte: windowStart(days, today) },
+        },
+        orderBy: { date: 'asc' },
+      });
+
+      return E.right(buildMockServerStats(mockServerId, rows, days, today));
     } catch (error) {
-      console.error('Error incrementing hit count:', error);
-      // Don't throw error - analytics shouldn't break the main flow
+      console.error('Error fetching mock server stats:', error);
+      return E.left(MOCK_SERVER_NOT_FOUND);
     }
   }
 
