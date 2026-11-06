@@ -95,7 +95,7 @@ export class MockServer {
 
   @Field(() => Int, {
     description:
-      'Total number of requests that resulted in a response status of 400 or above',
+      'Total number of requests that resulted in a response status of 400 or above. For mock servers created before error tracking, errors from request logs deleted before then are not included.',
   })
   errorCount: number;
 

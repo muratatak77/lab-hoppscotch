@@ -713,24 +713,29 @@ export class MockServerService {
     userUid: string,
     days: number,
   ): Promise<E.Either<string, MockServerStats>> {
-    const mockServer = await this.prisma.mockServer.findFirst({
-      where: { id: mockServerId, deletedAt: null },
-    });
-    if (!mockServer) return E.left(MOCK_SERVER_NOT_FOUND);
+    try {
+      const mockServer = await this.prisma.mockServer.findFirst({
+        where: { id: mockServerId, deletedAt: null },
+      });
+      if (!mockServer) return E.left(MOCK_SERVER_NOT_FOUND);
 
-    const hasAccess = await this.checkMockServerAccess(mockServer, userUid);
-    if (!hasAccess) return E.left(MOCK_SERVER_NOT_FOUND);
+      const hasAccess = await this.checkMockServerAccess(mockServer, userUid);
+      if (!hasAccess) return E.left(MOCK_SERVER_NOT_FOUND);
 
-    const today = new Date();
-    const rows = await this.prisma.mockServerDailyStat.findMany({
-      where: {
-        mockServerID: mockServerId,
-        date: { gte: windowStart(days, today) },
-      },
-      orderBy: { date: 'asc' },
-    });
+      const today = new Date();
+      const rows = await this.prisma.mockServerDailyStat.findMany({
+        where: {
+          mockServerID: mockServerId,
+          date: { gte: windowStart(days, today) },
+        },
+        orderBy: { date: 'asc' },
+      });
 
-    return E.right(buildMockServerStats(mockServerId, rows, days, today));
+      return E.right(buildMockServerStats(mockServerId, rows, days, today));
+    } catch (error) {
+      console.error('Error fetching mock server stats:', error);
+      return E.left(MOCK_SERVER_NOT_FOUND);
+    }
   }
 
   /**

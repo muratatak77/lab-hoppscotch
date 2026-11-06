@@ -8,6 +8,10 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
  */
 export const MOCK_SERVER_ERROR_STATUS_THRESHOLD = 400;
 
+/**
+ * Returns true when the status counts as an error
+ * (>= MOCK_SERVER_ERROR_STATUS_THRESHOLD).
+ */
 export function isErrorStatus(status: number): boolean {
   return status >= MOCK_SERVER_ERROR_STATUS_THRESHOLD;
 }

@@ -1428,6 +1428,25 @@ describe('MockServerService', () => {
       expect(mockPrisma.mockServerDailyStat.findMany).not.toHaveBeenCalled();
     });
 
+    test('should return error instead of throwing when the database fails', async () => {
+      mockPrisma.mockServer.findFirst.mockResolvedValue(dbMockServer);
+      mockPrisma.mockServerDailyStat.findMany.mockRejectedValue(
+        new Error('connection refused'),
+      );
+      const consoleSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+
+      const result = await mockServerService.getMockServerStats(
+        dbMockServer.id,
+        user.uid,
+        30,
+      );
+
+      expect(result).toEqualLeft(MOCK_SERVER_NOT_FOUND);
+      consoleSpy.mockRestore();
+    });
+
     test('should return error when user lacks access', async () => {
       mockPrisma.mockServer.findFirst.mockResolvedValue(dbMockServer);
 

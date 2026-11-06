@@ -45,6 +45,8 @@ FROM "MockServerLog" l
 GROUP BY l."mockServerID", (l."executedAt" AT TIME ZONE 'UTC')::date;
 
 -- Backfill: seed the lifetime error counter from the same logs.
+-- Only logs that still exist are counted, so for older servers this can be
+-- lower than the true lifetime total, while "hitCount" is not affected.
 UPDATE "MockServer" ms
 SET "errorCount" = e.cnt
 FROM (
