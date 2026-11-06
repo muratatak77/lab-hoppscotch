@@ -235,3 +235,5 @@ export class UserHistoryService {
     return E.left(USER_HISTORY_INVALID_REQ_TYPE);
   }
 }
+
+// Lab note.
